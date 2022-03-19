@@ -83,13 +83,15 @@ if __name__ == '__main__':
         initial_state="q0",
         final_states={"q1"},
     )
-    min_len = 5
-    max_len = 10
+
+    min_len = 2
+    max_len = 2
     data = DFADataset(dfa, min_len, max_len)
     tokenizer = SimpleDFATokenizer(["0", "1"], max_len + 2)
+
     dl = DataLoader(data, batch_size=256, collate_fn=data.create_collate(tokenizer))
 
-    model = SimpleEncoder(2, nlayers=2, nhead=2, d_model=8, d_hid=8)
+    model = SimpleEncoder(2, nlayers=6, nhead=8, d_model=32, d_hid=32)
     opt = optim.Adam(model.parameters(), lr=1e-3)
     for (x, y) in dl:
         opt.zero_grad()

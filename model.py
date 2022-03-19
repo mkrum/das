@@ -14,9 +14,10 @@ class PositionalEncoding(nn.Module):
         div_term = torch.exp(
             torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model)
         )
-        pe = torch.zeros(max_len, 1, d_model)
-        pe[:, 0, 0::2] = torch.sin(position * div_term)
-        pe[:, 0, 1::2] = torch.cos(position * div_term)
+
+        pe = torch.zeros(1, max_len, d_model)
+        pe[0, :, 0::2] = torch.sin(position * div_term)
+        pe[0, :, 1::2] = torch.cos(position * div_term)
         self.register_buffer("pe", pe)
 
     def forward(self, x):
@@ -24,8 +25,8 @@ class PositionalEncoding(nn.Module):
         Args:
             x: Tensor, shape [seq_len, batch_size, embedding_dim]
         """
-        x = x + self.pe[: x.size(0)]
-        return x
+        new_x = x + self.pe[:, :x.size(1)]
+        return new_x
 
 class SimpleEncoder(nn.Module):
     def __init__(
@@ -40,11 +41,9 @@ class SimpleEncoder(nn.Module):
         super().__init__()
         
         #1. Embedding
-        pos_encoder = PositionalEncoding(d_model)
-
         self.embed = nn.Sequential(
             nn.Embedding(n_tokens + 2, d_model),
-            pos_encoder,
+            PositionalEncoding(d_model),
         )
         
         #2. Encoding
@@ -56,7 +55,7 @@ class SimpleEncoder(nn.Module):
         #2. To logits-ing
         self.to_logits = nn.Linear(d_model, n_tokens)
 
-        self.device = torch.device("cpu")
+        self.device = torch.device("cuda")
 
     def to(self, device):
         self.device = device
@@ -67,9 +66,9 @@ class SimpleEncoder(nn.Module):
         input_data = data.input_ids
         mask = data.attention_mask
 
-        embedded = self.embed(mask * input_data)
+        embedded = self.embed(input_data)
 
-        encoded = self.encoder(embedded, src_key_padding_mask=mask)
+        encoded = self.encoder(embedded) #src_key_padding_mask=mask)
         out = encoded[:, 0]
         logits = self.to_logits(out)
         return logits
