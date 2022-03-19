@@ -66,9 +66,9 @@ class SimpleEncoder(nn.Module):
         input_data = data.input_ids
         mask = data.attention_mask
 
-        embedded = self.embed(input_data)
+        embedded = self.embed(mask * input_data)
 
-        encoded = self.encoder(embedded) #src_key_padding_mask=mask)
+        encoded = self.encoder(embedded, src_key_padding_mask=mask)
         out = encoded[:, 0]
         logits = self.to_logits(out)
         return logits

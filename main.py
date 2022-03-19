@@ -84,8 +84,8 @@ if __name__ == '__main__':
         final_states={"q1"},
     )
 
-    min_len = 2
-    max_len = 2
+    min_len = 5
+    max_len = 10
     data = DFADataset(dfa, min_len, max_len)
     tokenizer = SimpleDFATokenizer(["0", "1"], max_len + 2)
 
