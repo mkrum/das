@@ -63,8 +63,8 @@ class SimpleEncoder(nn.Module):
 
     def __call__(self, data):
         # TODO: Properly mask
-        input_data = data.input_ids
-        mask = data.attention_mask
+        input_data = data.input_ids.cuda()
+        mask = data.attention_mask.cuda()
 
         embedded = self.embed(mask * input_data)
 

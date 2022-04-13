@@ -1,3 +1,5 @@
+import random
+
 import torch
 import numpy as np
 from automata.fa.dfa import DFA
@@ -71,32 +73,47 @@ class DFADataset(Dataset):
 
         return collate_fn
 
-if __name__ == '__main__':
-    dfa = DFA(
-        states={"q0", "q1", "q2"},
-        input_symbols={"0", "1"},
-        transitions={
-            "q0": {"0": "q0", "1": "q1"},
-            "q1": {"0": "q0", "1": "q2"},
-            "q2": {"0": "q2", "1": "q1"},
-        },
-        initial_state="q0",
-        final_states={"q1"},
-    )
+def generate_random_binary_dfa(n_states=640):
 
-    min_len = 5
-    max_len = 10
+    states = [f"q{i}" for i in range(n_states)]
+    
+    transitions = {}
+    final_states = []
+    for s in states:
+        zero_state = np.random.choice(states)
+        one_state = np.random.choice(states)
+        transitions[s] = {"0": zero_state, "1": one_state}
+        if random.random() < 0.5:
+            final_states.append(s)
+
+    dfa = DFA(
+        states=set(states),
+        input_symbols={"0", "1"},
+        transitions=transitions,
+        initial_state="q0",
+        final_states=set(final_states),
+    )
+    dfa = dfa.minify()
+    return dfa
+
+if __name__ == '__main__':
+    min_len = 1
+    max_len = 21
+
+    dfa = generate_random_binary_dfa(n_states=11)
+
     data = DFADataset(dfa, min_len, max_len)
+
     tokenizer = SimpleDFATokenizer(["0", "1"], max_len + 2)
 
-    dl = DataLoader(data, batch_size=256, collate_fn=data.create_collate(tokenizer))
+    dl = DataLoader(data, batch_size=1024, collate_fn=data.create_collate(tokenizer))
 
-    model = SimpleEncoder(2, nlayers=6, nhead=8, d_model=32, d_hid=32)
+    model = SimpleEncoder(2, nlayers=6, nhead=8, d_model=32, d_hid=32).cuda()
     opt = optim.Adam(model.parameters(), lr=1e-3)
     for (x, y) in dl:
         opt.zero_grad()
         out = model(x)
-        loss = F.cross_entropy(out, y)
+        loss = F.cross_entropy(out, y.cuda())
         loss.backward()
         print(loss.item())
         opt.step()
