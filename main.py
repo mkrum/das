@@ -1,4 +1,5 @@
 import random
+import time
 
 import torch
 import numpy as np
@@ -10,11 +11,8 @@ import torch.nn.functional as F
 from transformers import PreTrainedTokenizer
 
 from model import SimpleEncoder
+from data import make_binary_datasets
 
-def sample_string(vocab, min_len, max_len):
-    # TODO: Fix this, it is slow
-    size = np.random.choice(range(min_len, max_len + 1))
-    return ''.join(np.random.choice(list(vocab), size=size))
 
 class SimpleDFATokenizer(PreTrainedTokenizer):
     """
@@ -44,39 +42,10 @@ class SimpleDFATokenizer(PreTrainedTokenizer):
     def vocab_size(self):
         return len(self.symbols)
 
-class DFADataset(Dataset):
-
-    def __init__(self, dfa, min_len, max_len):
-        super().__init__()
-        self.dfa = dfa 
-        self.min_len = min_len
-        self.max_len = max_len
-
-    def __len__(self): 
-        # Return some very, very large number to simulate infinite data
-        return 2 ** 30
-
-    def __getitem__(self, idx):
-        """
-        Randomly samples a string, labels whether or not it accepts
-        """
-        random_string = sample_string(set(["0", "1"]), self.min_len, self.max_len)
-        label = int(self.dfa.accepts_input(random_string))
-        return random_string, label
-
-    def create_collate(self, tokenizer):
-        def collate_fn(batch):
-            inputs, labels = zip(*batch)
-            return tokenizer(
-                inputs, padding=True, return_tensors="pt"
-            ), torch.LongTensor(labels)
-
-        return collate_fn
 
 def generate_random_binary_dfa(n_states=640):
-
     states = [f"q{i}" for i in range(n_states)]
-    
+
     transitions = {}
     final_states = []
     for s in states:
@@ -96,24 +65,29 @@ def generate_random_binary_dfa(n_states=640):
     dfa = dfa.minify()
     return dfa
 
-if __name__ == '__main__':
-    min_len = 1
-    max_len = 21
 
-    dfa = generate_random_binary_dfa(n_states=11)
+if __name__ == "__main__":
+    dfa = generate_random_binary_dfa(n_states=4)
 
-    data = DFADataset(dfa, min_len, max_len)
+    train_data, test_data = make_binary_datasets(dfa, 19, 0.5)
 
-    tokenizer = SimpleDFATokenizer(["0", "1"], max_len + 2)
+    tokenizer = SimpleDFATokenizer(["0", "1"], max_len=19 + 2)
 
-    dl = DataLoader(data, batch_size=1024, collate_fn=data.create_collate(tokenizer))
+    dl = DataLoader(
+        train_data,
+        batch_size=1024,
+        collate_fn=train_data.create_collate(tokenizer),
+        shuffle=True,
+    )
 
     model = SimpleEncoder(2, nlayers=6, nhead=8, d_model=32, d_hid=32).cuda()
     opt = optim.Adam(model.parameters(), lr=1e-3)
-    for (x, y) in dl:
-        opt.zero_grad()
-        out = model(x)
-        loss = F.cross_entropy(out, y.cuda())
-        loss.backward()
-        print(loss.item())
-        opt.step()
+
+    for epoch in range(2):
+        for (x, y) in dl:
+            opt.zero_grad()
+            out = model(x)
+            loss = F.cross_entropy(out, y.cuda())
+            loss.backward()
+            opt.step()
+            print(loss.item())

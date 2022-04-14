@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 
+
 class PositionalEncoding(nn.Module):
     """
     From the classic: https://pytorch.org/tutorials/beginner/transformer_tutorial.html
@@ -25,8 +26,9 @@ class PositionalEncoding(nn.Module):
         Args:
             x: Tensor, shape [seq_len, batch_size, embedding_dim]
         """
-        new_x = x + self.pe[:, :x.size(1)]
+        new_x = x + self.pe[:, : x.size(1)]
         return new_x
+
 
 class SimpleEncoder(nn.Module):
     def __init__(
@@ -39,20 +41,16 @@ class SimpleEncoder(nn.Module):
         dropout=0.1,
     ):
         super().__init__()
-        
-        #1. Embedding
+
         self.embed = nn.Sequential(
             nn.Embedding(n_tokens + 2, d_model),
             PositionalEncoding(d_model),
         )
-        
-        #2. Encoding
+
         encoder_layers = TransformerEncoderLayer(
             d_model, nhead, d_hid, dropout, batch_first=True
         )
         self.encoder = TransformerEncoder(encoder_layers, nlayers)
-
-        #2. To logits-ing
         self.to_logits = nn.Linear(d_model, n_tokens)
 
         self.device = torch.device("cuda")
@@ -62,13 +60,12 @@ class SimpleEncoder(nn.Module):
         return super().to(device)
 
     def __call__(self, data):
-        # TODO: Properly mask
         input_data = data.input_ids.cuda()
         mask = data.attention_mask.cuda()
 
         embedded = self.embed(mask * input_data)
+        encoded = self.encoder(embedded, src_key_padding_mask=~mask.bool())
 
-        encoded = self.encoder(embedded, src_key_padding_mask=mask)
         out = encoded[:, 0]
         logits = self.to_logits(out)
         return logits
