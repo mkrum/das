@@ -35,7 +35,7 @@ class SimpleEncoder(nn.Module):
         self,
         n_tokens,
         nlayers=6,
-        nhead=4,
+        nhead=8,
         d_model=128,
         d_hid=128,
         dropout=0.1,
@@ -46,12 +46,16 @@ class SimpleEncoder(nn.Module):
             nn.Embedding(n_tokens + 2, d_model),
             PositionalEncoding(d_model),
         )
-
+        
+        dropout = 0.0
         encoder_layers = TransformerEncoderLayer(
             d_model, nhead, d_hid, dropout, batch_first=True
         )
         self.encoder = TransformerEncoder(encoder_layers, nlayers)
-        self.to_logits = nn.Linear(d_model, n_tokens)
+        self.to_logits = nn.Sequential(
+            nn.Linear(d_model, n_tokens),
+            nn.LogSoftmax(dim=1),
+        )
 
         self.device = torch.device("cuda")
 
@@ -66,6 +70,5 @@ class SimpleEncoder(nn.Module):
         embedded = self.embed(mask * input_data)
         encoded = self.encoder(embedded, src_key_padding_mask=~mask.bool())
 
-        out = encoded[:, 0]
-        logits = self.to_logits(out)
-        return logits
+        logits = self.to_logits(encoded)
+        return logits[:, 0]

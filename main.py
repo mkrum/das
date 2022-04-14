@@ -1,5 +1,6 @@
 import random
 import time
+from collections import deque
 
 import torch
 import numpy as np
@@ -65,29 +66,60 @@ def generate_random_binary_dfa(n_states=640):
     dfa = dfa.minify()
     return dfa
 
+def eval_model(model, test_dl, sample_size):
+    correct = 0.0
+    total = 0.0
+    for (x, y) in test_dl:
+        with torch.no_grad():
+            out = model(x)
+        pred = torch.argmax(out, dim=1).cpu()
+
+        correct += torch.sum(pred == y).item()
+        total += pred.shape[0]
+
+        if total > sample_size:
+            break
+    
+    return correct/total
+
 
 if __name__ == "__main__":
-    dfa = generate_random_binary_dfa(n_states=4)
+    dfa = generate_random_binary_dfa(n_states=20)
 
-    train_data, test_data = make_binary_datasets(dfa, 19, 0.5)
+    train_data, test_data = make_binary_datasets(dfa, 19, 0.8)
 
-    tokenizer = SimpleDFATokenizer(["0", "1"], max_len=19 + 2)
+    tokenizer = SimpleDFATokenizer(["0", "1"])#, max_len=19 + 2)
 
-    dl = DataLoader(
+    train_dl = DataLoader(
         train_data,
         batch_size=1024,
         collate_fn=train_data.create_collate(tokenizer),
         shuffle=True,
     )
 
-    model = SimpleEncoder(2, nlayers=6, nhead=8, d_model=32, d_hid=32).cuda()
+    test_dl = DataLoader(
+        test_data,
+        batch_size=1024,
+        collate_fn=test_data.create_collate(tokenizer),
+        shuffle=True,
+    )
+
+    model = SimpleEncoder(2, nlayers=10, d_model=128, d_hid=128).cuda()
     opt = optim.Adam(model.parameters(), lr=1e-3)
 
-    for epoch in range(2):
-        for (x, y) in dl:
+    eval_acc = eval_model(model, test_dl, 10000)
+    print(f"EVAL 0: {eval_acc}")
+    
+    losses = deque(maxlen=100)
+    for epoch in range(20):
+        for (batch_idx, (x, y)) in enumerate(train_dl):
             opt.zero_grad()
             out = model(x)
-            loss = F.cross_entropy(out, y.cuda())
+            loss = F.nll_loss(out, y.cuda())
             loss.backward()
+            losses.append(loss.item())
             opt.step()
-            print(loss.item())
+            print(f'({epoch:03} {batch_idx:04}/{len(train_dl):04}) {round(np.mean(losses), 2):.2f}', end='\r')
+
+        eval_acc = eval_model(model, test_dl, 10000)
+        print(f"EVAL {epoch+1}: {eval_acc}")
