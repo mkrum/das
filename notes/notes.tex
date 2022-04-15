@@ -1,0 +1,73 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[parfill]{parskip}
+
+\begin{document}
+
+\Large \noindent Michael Krumdick \newline
+\Large \textbf{Project Proposal: Transformers and Finite Automata} \newline
+\Large 03/24/2022 \newline
+
+\normalsize
+
+\section{Motivation}
+The goal of this work is to better understand and quantify the ability for
+transformers \cite{transformer} to learn finite automata. Our underlying
+motivation is to help inform the tokenisation process for deep learning
+practitioners.  This is the process of selecting the vocabulary and syntax for a
+modeling a (potentially non-natural) language. For example, DNA sequences can be
+represented by a series of nucleotides (i.e. representing AGTATC as [``A'',
+``G'', ``T'', ``A'', ``T'', ``C'']) or as "k-mers" (i.e. representing AGTATC as
+[``AGT'', ``ATC'']). We can think of these structurally as two different
+automata that accept the same language, but with different size alphabets and
+states. For any non-natural language, practitioners need to
+craft a vocabulary and syntax entirely from scratch. Each language will have different
+possible representations that will lead to different levels of performance. Our
+hope is to help shed more light onto exactly what the trade-offs behind those
+design decisions might be.
+
+\section{Prior Work}
+
+\textit{Random DFA's can be Approximately Learned from Sparse Uniform Examples}
+\cite{Lang98} represents the most similar analysis to what we are hoping to do.
+They performed a empirical analysis of passively learning finite automata using
+the tree contraction algorithm from Trakhenbrot and Barzdin. They looked at a
+subset of DFA's known as ``Trellis Machines.'' These are acyclic finite
+deterministic automata that have $d$ rows of width $w$, where each row is
+randomly connected by the alphabet $a$ to the row directly below it.  Through
+their experiments, they estimated that the order of $O((a w/(w - 1))^{d/2})$
+samples were required to reach a given level of confidence. 
+
+There have been a few works looking at the connection between deep learning and
+finite automata. \textit{Sequential Neural Networks as Automata} \cite{snnaa}
+introduces a set of theoretical tools for analyzing the ability for sequential
+neural networks to learn different kinds of formal languages. In \textit{Thinking Like
+Transformers} \cite{thinkingliketransformers}, the authors develop a
+formal computational model behind the operations that a transformer is capable
+of. They use this model to then derive and experimentally validate bounds on the
+minimum architecture size required to learn different operations. There is also
+a good amount of work on using transformers to find approximate solutions to
+known NP-Hard problems, most notably the traveling salesman problem in
+\cite{wouter} and \cite{otherTSP}.
+
+\section{Outcomes}
+
+The main goal will be to recreate a study similar to that of \textit{Scaling
+Laws For Neural Language Models} \cite{scalinglaws}. In this paper, they were
+able to establish that the performance of a neural language model scales like a
+power law in terms of important parameters. We will try to follow a similar
+process to see if we can discover scaling relationships with the hyperparameters
+of the finite automata in the same vein as \cite{Lang98}. To do so, we will
+generate a large set of randomized ``Trellis Machines``, attempt to learn them
+with a transfomer-based model,  and then try to fit a
+predictive relationship from these hyperparameters to the performance of the
+model. We will compare these results with the bound found in $\cite{Lang98}$ and
+other theoretical results. If time permits, we would also like to attempt some
+form of active learning algorithm as well to see if this leads to measurably
+different  performance. We will then connect this analysis to the tokenisation
+process and attempt to draw some insights.
+
+
+\bibliographystyle{plain}
+\end{document}
