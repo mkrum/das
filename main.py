@@ -66,6 +66,7 @@ def generate_random_binary_dfa(n_states=640):
     dfa = dfa.minify()
     return dfa
 
+
 def eval_model(model, test_dl, sample_size):
     correct = 0.0
     total = 0.0
@@ -79,16 +80,12 @@ def eval_model(model, test_dl, sample_size):
 
         if total > sample_size:
             break
-    
-    return correct/total
+
+    return correct / total
 
 
-if __name__ == "__main__":
-    dfa = generate_random_binary_dfa(n_states=20)
-
-    train_data, test_data = make_binary_datasets(dfa, 19, 0.8)
-
-    tokenizer = SimpleDFATokenizer(["0", "1"])#, max_len=19 + 2)
+def main(dfa, model, tokenizer):
+    train_data, test_data = make_binary_datasets(dfa, 18, 0.99)
 
     train_dl = DataLoader(
         train_data,
@@ -104,22 +101,90 @@ if __name__ == "__main__":
         shuffle=True,
     )
 
-    model = SimpleEncoder(2, nlayers=10, d_model=128, d_hid=128).cuda()
-    opt = optim.Adam(model.parameters(), lr=1e-3)
+    model = SimpleEncoder(2, nlayers=7, d_model=128, d_hid=128).cuda()
+    opt = optim.Adam(model.parameters(), lr=1e-4)
 
     eval_acc = eval_model(model, test_dl, 10000)
     print(f"EVAL 0: {eval_acc}")
-    
+
     losses = deque(maxlen=100)
-    for epoch in range(20):
+    for epoch in range(200):
         for (batch_idx, (x, y)) in enumerate(train_dl):
+
             opt.zero_grad()
             out = model(x)
-            loss = F.nll_loss(out, y.cuda())
+            loss = F.cross_entropy(out, y.cuda())
             loss.backward()
-            losses.append(loss.item())
             opt.step()
-            print(f'({epoch:03} {batch_idx:04}/{len(train_dl):04}) {round(np.mean(losses), 2):.2f}', end='\r')
 
-        eval_acc = eval_model(model, test_dl, 10000)
+            losses.append(loss.item())
+            print(
+                f"({epoch:03} {batch_idx:04}/{len(train_dl):04}) {round(np.mean(losses), 2):.2f}",
+                end="\r",
+            )
+            if batch_idx % 100 == 0 and batch_idx > 0:
+                print()
+                eval_acc = eval_model(model, test_dl, 1000)
+                print(f"EVAL {epoch+1}: {eval_acc}")
+                eval_acc = eval_model(model, train_dl, 1000)
+                print(f"TRAIN {epoch+1}: {eval_acc}")
+
+        print()
+        eval_acc = eval_model(model, test_dl, 1000)
         print(f"EVAL {epoch+1}: {eval_acc}")
+        eval_acc = eval_model(model, train_dl, 1000)
+        print(f"TRAIN {epoch+1}: {eval_acc}")
+
+
+def overfit():
+    dfa = generate_random_binary_dfa(n_states=7)
+
+    train_data, _ = make_binary_datasets(dfa, 4, 1.0)
+
+    tokenizer = SimpleDFATokenizer(["0", "1"], max_len=1024)
+
+    train_dl = DataLoader(
+        train_data,
+        batch_size=3,
+        collate_fn=train_data.create_collate(tokenizer),
+        shuffle=True,
+    )
+
+    x, y = next(iter(train_dl))
+    y = torch.zeros_like(y)
+    y[0] = 1.0
+
+    while True:
+        model = SimpleEncoder(2, nlayers=5, d_model=128, d_hid=128).cuda()
+        opt = optim.Adam(model.parameters(), lr=1e-4)
+
+        for _ in range(1000):
+
+            opt.zero_grad()
+            out = model(x)
+            loss = F.cross_entropy(out, y.cuda())
+            loss.backward()
+            opt.step()
+
+            print(loss.item())
+
+            if loss.item() < 0.01:
+                x, _ = next(iter(train_dl))
+                break
+
+        import pdb
+
+        pdb.set_trace()
+
+
+if __name__ == "__main__":
+
+    dfa = generate_random_binary_dfa(n_states=6)
+    dfa.show_diagram(path="/tmp/dfa.png")
+
+    model = SimpleEncoder(2, nlayers=7, d_model=128, d_hid=128).cuda()
+
+    tokenizer = SimpleDFATokenizer(["0", "1"], max_len=1024)
+
+    # overfit()
+    main(dfa, model, tokenizer)

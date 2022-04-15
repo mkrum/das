@@ -11,7 +11,7 @@ class PositionalEncoding(nn.Module):
 
     def __init__(self, d_model: int, max_len: int = 5000):
         super().__init__()
-        position = torch.arange(max_len).unsqueeze(1)
+        position = 20 * torch.arange(max_len).unsqueeze(1)
         div_term = torch.exp(
             torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model)
         )
@@ -30,6 +30,33 @@ class PositionalEncoding(nn.Module):
         return new_x
 
 
+def positionalencoding1d(d_model, length):
+    """
+    This is from: https://github.com/wzlxjtu/PositionalEncoding2D/blob/master/positionalembedding2d.py
+
+    :param d_model: dimension of the model
+    :param length: length of positions
+    :return: length*d_model position matrix
+    """
+    if d_model % 2 != 0:
+        raise ValueError(
+            "Cannot use sin/cos positional encoding with "
+            "odd dim (got dim={:d})".format(d_model)
+        )
+    pe = torch.zeros(length, d_model)
+    position = torch.arange(0, length).unsqueeze(1)
+    div_term = torch.exp(
+        (
+            torch.arange(0, d_model, 2, dtype=torch.float)
+            * -(math.log(10000.0) / d_model)
+        )
+    )
+    pe[:, 0::2] = torch.sin(position.float() * div_term)
+    pe[:, 1::2] = torch.cos(position.float() * div_term)
+
+    return pe
+
+
 class SimpleEncoder(nn.Module):
     def __init__(
         self,
@@ -42,19 +69,24 @@ class SimpleEncoder(nn.Module):
     ):
         super().__init__()
 
+        self.pe = positionalencoding1d(d_model, 19).to("cuda")
+
         self.embed = nn.Sequential(
             nn.Embedding(n_tokens + 2, d_model),
-            PositionalEncoding(d_model),
         )
-        
-        dropout = 0.0
+
+        dropout = 0.1
+
         encoder_layers = TransformerEncoderLayer(
-            d_model, nhead, d_hid, dropout, batch_first=True
+            d_model=d_model,
+            nhead=nhead,
+            dropout=dropout,
+            batch_first=True,
         )
         self.encoder = TransformerEncoder(encoder_layers, nlayers)
+
         self.to_logits = nn.Sequential(
             nn.Linear(d_model, n_tokens),
-            nn.LogSoftmax(dim=1),
         )
 
         self.device = torch.device("cuda")
@@ -63,12 +95,11 @@ class SimpleEncoder(nn.Module):
         self.device = device
         return super().to(device)
 
-    def __call__(self, data):
+    def forward(self, data):
         input_data = data.input_ids.cuda()
         mask = data.attention_mask.cuda()
+        embedded = self.embed(input_data) + self.pe[: input_data.shape[1]]
+        encoded = self.encoder(embedded)  # , src_key_padding_mask=~mask.bool())
 
-        embedded = self.embed(mask * input_data)
-        encoded = self.encoder(embedded, src_key_padding_mask=~mask.bool())
-
-        logits = self.to_logits(encoded)
-        return logits[:, 0]
+        out = encoded[:, 0]
+        return self.to_logits(out)

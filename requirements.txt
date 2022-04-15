@@ -1,3 +1,4 @@
 automata-lib
 torch
 transformers
+black
