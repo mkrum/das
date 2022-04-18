@@ -86,6 +86,10 @@ if __name__ == "__main__":
     logger.log_str(str(config_data))
 
     dfa = config["DFA"](config["datasets"]["max_size"])
+    
+    with open(f"{args.log_path}/config.yml", "w") as cfg_save:
+        cfg_save.write(config.to_yaml())
+
     dfa.show_diagram(path=f"{args.log_path}/dfa.png")
     pkl.dump(dfa, open(f"{args.log_path}/dfa.pkl", "wb"))
 
