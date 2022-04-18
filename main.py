@@ -1,3 +1,5 @@
+import pickle as pkl
+
 import torch
 import numpy as np
 from torch.utils.data import Dataset
@@ -11,6 +13,7 @@ from mllg import LogWriter, TestInfo, TrainInfo, ValidationInfo
 from yamlargs.parser import load_config_and_create_parser, parse_args_into_config
 
 import config
+
 
 def eval_model(model, test_dl, sample_size):
     correct = 0.0
@@ -70,7 +73,6 @@ def main(dfa, model, tokenizer, train_data, test_data, logger):
         logger.log_info(ValidationInfo(epoch, batch_idx, [TestInfo("ACC", eval_acc)]))
 
 
-
 if __name__ == "__main__":
     config, parser = load_config_and_create_parser()
     parser.add_argument("log_path")
@@ -80,13 +82,14 @@ if __name__ == "__main__":
 
     logger = LogWriter(args.log_path)
     config_data = config.to_json()
-    config_data['type'] = 'config'
+    config_data["type"] = "config"
     logger.log_str(str(config_data))
 
-    dfa = config["DFA"](config['datasets']['max_size'])
+    dfa = config["DFA"](config["datasets"]["max_size"])
     dfa.show_diagram(path=f"{args.log_path}/dfa.png")
+    pkl.dump(dfa, open(f"{args.log_path}/dfa.pkl", "wb"))
 
-    train_data, test_data = config['datasets'](dfa)
+    train_data, test_data = config["datasets"](dfa)
 
     model = config["model"]()
     model = model.cuda()

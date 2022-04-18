@@ -35,14 +35,15 @@ class SimpleDFATokenizer(PreTrainedTokenizer):
     def vocab_size(self):
         return len(self.symbols)
 
+
 def generate_random_binary_dfa(max_input_len, n_states=640):
     states = [f"q{i}" for i in range(n_states)]
 
     transitions = {}
     final_states = []
     for s in states:
-        zero_state = ''
-        one_state = ''
+        zero_state = ""
+        one_state = ""
         while zero_state == one_state:
             zero_state = np.random.choice(states)
             one_state = np.random.choice(states)
@@ -60,17 +61,21 @@ def generate_random_binary_dfa(max_input_len, n_states=640):
     )
     dfa = dfa.minify()
     if len(dfa.states) != n_states:
-        return generate_random_binary_dfa(max_input_len=max_input_len, n_states=n_states)
-    
+        return generate_random_binary_dfa(
+            max_input_len=max_input_len, n_states=n_states
+        )
+
     N = 1000
     accept = 0.0
     for i in range(N):
         random_string = sample_string(["0", "1"], max_input_len, max_input_len)
         accept += int(dfa.accepts_input(random_string))
-    
+
     acc = accept / N
     if (acc > 0.55) or (acc < 0.45):
-        return generate_random_binary_dfa(max_input_len=max_input_len, n_states=n_states)
+        return generate_random_binary_dfa(
+            max_input_len=max_input_len, n_states=n_states
+        )
 
     return dfa
 
