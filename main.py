@@ -1,71 +1,16 @@
-import random
-import time
-from collections import deque
-
 import torch
 import numpy as np
-from automata.fa.dfa import DFA
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 import torch.optim as optim
 import torch.nn.functional as F
-from transformers import PreTrainedTokenizer
 
-from model import SimpleEncoder
 from data import make_binary_datasets
+from mllg import LogWriter, TestInfo, TrainInfo, ValidationInfo
 
+from yamlargs.parser import load_config_and_create_parser, parse_args_into_config
 
-class SimpleDFATokenizer(PreTrainedTokenizer):
-    """
-    Custom Tokenizer that create tokens at the nucelotide level.
-
-    Nucleotide-level tokenizer, implements the huggingface tokenization class.
-    Represents treating each individual nucleotide as its own token.
-    """
-
-    def __init__(self, symbols, max_len=1024):
-        super().__init__(max_len=max_len, pad_token="<pad>")
-        # add start and pad symbol
-        self.symbols = symbols + ["<s>", "<pad>"]
-
-    def _tokenize(self, sequence):
-        return ["<s>"] + list(sequence)
-
-    def _convert_token_to_id(self, token):
-        return self.symbols.index(token)
-
-    def _convert_id_to_token(self, idx):
-        return self.symbols[idx]
-
-    def get_vocab(self):
-        return self.symbols
-
-    def vocab_size(self):
-        return len(self.symbols)
-
-
-def generate_random_binary_dfa(n_states=640):
-    states = [f"q{i}" for i in range(n_states)]
-
-    transitions = {}
-    final_states = []
-    for s in states:
-        zero_state = np.random.choice(states)
-        one_state = np.random.choice(states)
-        transitions[s] = {"0": zero_state, "1": one_state}
-        if random.random() < 0.5:
-            final_states.append(s)
-
-    dfa = DFA(
-        states=set(states),
-        input_symbols={"0", "1"},
-        transitions=transitions,
-        initial_state="q0",
-        final_states=set(final_states),
-    )
-    dfa = dfa.minify()
-    return dfa
-
+import config
 
 def eval_model(model, test_dl, sample_size):
     correct = 0.0
@@ -84,8 +29,7 @@ def eval_model(model, test_dl, sample_size):
     return correct / total
 
 
-def main(dfa, model, tokenizer):
-    train_data, test_data = make_binary_datasets(dfa, 18, 0.99)
+def main(dfa, model, tokenizer, train_data, test_data, logger):
 
     train_dl = DataLoader(
         train_data,
@@ -100,91 +44,53 @@ def main(dfa, model, tokenizer):
         collate_fn=test_data.create_collate(tokenizer),
         shuffle=True,
     )
-
-    model = SimpleEncoder(2, nlayers=7, d_model=128, d_hid=128).cuda()
     opt = optim.Adam(model.parameters(), lr=1e-4)
 
-    eval_acc = eval_model(model, test_dl, 10000)
-    print(f"EVAL 0: {eval_acc}")
+    eval_acc = eval_model(model, test_dl, 1000)
+    logger.log_info(ValidationInfo(0, 0, [TestInfo("ACC", eval_acc)]))
+    print(len(train_dl))
 
-    losses = deque(maxlen=100)
-    for epoch in range(200):
+    for epoch in range(1):
         for (batch_idx, (x, y)) in enumerate(train_dl):
 
             opt.zero_grad()
             out = model(x)
             loss = F.cross_entropy(out, y.cuda())
             loss.backward()
+            logger.log_info(TrainInfo(epoch, batch_idx, loss.item()))
             opt.step()
 
-            losses.append(loss.item())
-            print(
-                f"({epoch:03} {batch_idx:04}/{len(train_dl):04}) {round(np.mean(losses), 2):.2f}",
-                end="\r",
-            )
-            if batch_idx % 100 == 0 and batch_idx > 0:
-                print()
+            if batch_idx % 1000 == 0 and batch_idx > 0:
                 eval_acc = eval_model(model, test_dl, 1000)
-                print(f"EVAL {epoch+1}: {eval_acc}")
-                eval_acc = eval_model(model, train_dl, 1000)
-                print(f"TRAIN {epoch+1}: {eval_acc}")
+                logger.log_info(
+                    ValidationInfo(epoch, batch_idx, [TestInfo("ACC", eval_acc)])
+                )
 
-        print()
         eval_acc = eval_model(model, test_dl, 1000)
-        print(f"EVAL {epoch+1}: {eval_acc}")
-        eval_acc = eval_model(model, train_dl, 1000)
-        print(f"TRAIN {epoch+1}: {eval_acc}")
+        logger.log_info(ValidationInfo(epoch, batch_idx, [TestInfo("ACC", eval_acc)]))
 
-
-def overfit():
-    dfa = generate_random_binary_dfa(n_states=7)
-
-    train_data, _ = make_binary_datasets(dfa, 4, 1.0)
-
-    tokenizer = SimpleDFATokenizer(["0", "1"], max_len=1024)
-
-    train_dl = DataLoader(
-        train_data,
-        batch_size=3,
-        collate_fn=train_data.create_collate(tokenizer),
-        shuffle=True,
-    )
-
-    x, y = next(iter(train_dl))
-    y = torch.zeros_like(y)
-    y[0] = 1.0
-
-    while True:
-        model = SimpleEncoder(2, nlayers=5, d_model=128, d_hid=128).cuda()
-        opt = optim.Adam(model.parameters(), lr=1e-4)
-
-        for _ in range(1000):
-
-            opt.zero_grad()
-            out = model(x)
-            loss = F.cross_entropy(out, y.cuda())
-            loss.backward()
-            opt.step()
-
-            print(loss.item())
-
-            if loss.item() < 0.01:
-                x, _ = next(iter(train_dl))
-                break
-
-        import pdb
-
-        pdb.set_trace()
 
 
 if __name__ == "__main__":
+    config, parser = load_config_and_create_parser()
+    parser.add_argument("log_path")
+    args = parser.parse_args()
 
-    dfa = generate_random_binary_dfa(n_states=6)
-    dfa.show_diagram(path="/tmp/dfa.png")
+    config = parse_args_into_config(config, args)
 
-    model = SimpleEncoder(2, nlayers=7, d_model=128, d_hid=128).cuda()
+    logger = LogWriter(args.log_path)
+    config_data = config.to_json()
+    config_data['type'] = 'config'
+    logger.log_str(str(config_data))
 
-    tokenizer = SimpleDFATokenizer(["0", "1"], max_len=1024)
+    dfa = config["DFA"](config['datasets']['max_size'])
+    dfa.show_diagram(path=f"{args.log_path}/dfa.png")
 
-    # overfit()
-    main(dfa, model, tokenizer)
+    train_data, test_data = config['datasets'](dfa)
+
+    model = config["model"]()
+    model = model.cuda()
+
+    tokenizer = config["tokenizer"]()
+
+    main(dfa, model, tokenizer, train_data, test_data, logger)

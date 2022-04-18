@@ -69,7 +69,7 @@ class SimpleEncoder(nn.Module):
     ):
         super().__init__()
 
-        self.pe = positionalencoding1d(d_model, 19).to("cuda")
+        self.pe = positionalencoding1d(d_model, 25).to("cuda")
 
         self.embed = nn.Sequential(
             nn.Embedding(n_tokens + 2, d_model),
