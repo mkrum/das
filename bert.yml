@@ -10,7 +10,4 @@ datasets: !make_binary_datasets()
 DFA: !generate_random_binary_dfa()
     n_states: 4
 
-model: !SimpleEncoder()
-    n_tokens: 2 
-    nlayers: 6
-    use_xavier: True
+model: !BERT()

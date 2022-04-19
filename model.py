@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 
+from transformers import BertModel, BertConfig
+
 
 class PositionalEncoding(nn.Module):
     """
@@ -66,6 +68,7 @@ class SimpleEncoder(nn.Module):
         d_model=128,
         d_hid=128,
         dropout=0.1,
+        use_xavier=True,
     ):
         super().__init__()
 
@@ -74,8 +77,6 @@ class SimpleEncoder(nn.Module):
         self.embed = nn.Sequential(
             nn.Embedding(n_tokens + 2, d_model),
         )
-
-        dropout = 0.1
 
         encoder_layers = TransformerEncoderLayer(
             d_model=d_model,
@@ -91,6 +92,11 @@ class SimpleEncoder(nn.Module):
 
         self.device = torch.device("cuda")
 
+        if use_xavier:
+            for p in self.encoder.parameters():
+                if p.dim() > 1:
+                    nn.init.xavier_uniform_(p)
+
     def to(self, device):
         self.device = device
         return super().to(device)
@@ -103,3 +109,26 @@ class SimpleEncoder(nn.Module):
 
         out = encoded[:, 0]
         return self.to_logits(out)
+
+
+class BERT(nn.Module):
+    """
+    ever heard of it?
+    """
+
+    def __init__(self):
+        super().__init__()
+
+        hidden_size = 768
+        config = BertConfig(vocab_size=4, num_hidden_layers=2, hidden_size=hidden_size)
+        self.model = BertModel(config).cuda()
+        self.head = nn.Linear(hidden_size, 2)
+
+    def to(self, device):
+        self.device = device
+        return super().to(device)
+
+    def forward(self, x):
+        x = x.to(torch.device("cuda"))
+        out = self.model(**x)
+        return self.head(out.pooler_output)
