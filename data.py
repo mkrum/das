@@ -80,16 +80,18 @@ def generate_random_binary_dfa(max_input_len, n_states=640):
 
     return dfa
 
-def generate_trellis(depth, width, alpha):
 
-    initial_state = 'q0'
-    
+def generate_trellis(depth, width, alpha_num):
+    alpha = [str(a) for a in range(alpha_num)]
+
+    initial_state = "q0"
+
     states = [initial_state]
     last_layer = [initial_state]
     final_states = []
     transitions = {}
     for d in range(depth):
-        new_layer = [f'q{d}-{w}' for w in range(width)]
+        new_layer = [f"q{d}-{w}" for w in range(width)]
         states += new_layer
 
         for l in new_layer:
@@ -102,7 +104,7 @@ def generate_trellis(depth, width, alpha):
                 transitions[l][a] = np.random.choice(new_layer)
 
         last_layer = copy.copy(new_layer)
-    
+
     for l in last_layer:
         transitions[l] = {}
         for a in alpha:
@@ -116,6 +118,16 @@ def generate_trellis(depth, width, alpha):
         final_states=set(final_states),
     )
     dfa = dfa.minify()
+
+    N = 1000
+    accept = 0.0
+    for i in range(N):
+        random_string = sample_string(["0", "1"], depth, depth)
+        accept += int(dfa.accepts_input(random_string))
+
+    acc = accept / N
+    if (acc > 0.55) or (acc < 0.45):
+        return generate_trellis(depth, width, alpha_num)
     return dfa
 
 
@@ -204,6 +216,7 @@ class RandomDFADataset(Dataset):
 
         return collate_fn
 
-if __name__ == '__main__':
-    dfa = generate_trellis(21, 2, ["0", "1"])
+
+if __name__ == "__main__":
+    dfa = generate_trellis(21, 3, 3)
     dfa.show_diagram(path=f"tmp.png")

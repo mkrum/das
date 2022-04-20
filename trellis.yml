@@ -9,7 +9,7 @@ datasets: !make_binary_datasets()
 
 DFA: !generate_trellis()
     width: 2
-    alpha: ["0", "1"]
+    alpha_num: 2
 
 model: !SimpleEncoder()
     n_tokens: 2 
