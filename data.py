@@ -6,6 +6,7 @@ from transformers import PreTrainedTokenizer
 
 from automata.fa.dfa import DFA
 import numpy as np
+import string
 
 
 class SimpleDFATokenizer(PreTrainedTokenizer):
@@ -82,7 +83,10 @@ def generate_random_binary_dfa(max_input_len, n_states=640):
 
 
 def generate_trellis(depth, width, alpha_num):
-    alpha = [str(a) for a in range(alpha_num)]
+    SYMBOLS = list(map(str, range(9))) + list(string.ascii_lowercase) + list(string.ascii_uppercase) + list(string.punctuation)
+    assert (alpha_num < len(SYMBOLS))
+    alpha = SYMBOLS[:alpha_num] #[str(a) for a in range(alpha_num)]
+    print(len(alpha))
 
     initial_state = "q0"
 
