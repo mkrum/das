@@ -1,6 +1,7 @@
 import math
 import torch
 import torch.nn as nn
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 
 from transformers import BertModel, BertConfig
@@ -132,3 +133,44 @@ class BERT(nn.Module):
         x = x.to(torch.device("cuda"))
         out = self.model(**x)
         return self.head(out.pooler_output)
+
+
+class LSTM(nn.Module):
+    def __init__(
+        self,
+        n_tokens=4,
+        nlayers=6,
+        d_model=128,
+        d_hid=128,
+    ):
+        super().__init__()
+        self.embed = nn.Embedding(n_tokens, d_model).cuda()
+        self.lstm = nn.LSTM(
+            input_size=d_model,
+            num_layers=nlayers,
+            hidden_size=d_hid,
+            bidirectional=False,
+            batch_first=True,
+        ).cuda()
+        self.head = nn.Linear(d_model, 2).cuda()
+        self.device = torch.device("cuda")
+
+    def to(self, device):
+        self.device = device
+        return super().to(device)
+
+    def __call__(self, data):
+        data = data.input_ids.to(self.device)
+        lengths = torch.sum(data != -1, -1)
+        mask = data != -1
+
+        embedded_data = self.embed(mask * data)
+
+        packed_embedded_data = pack_padded_sequence(
+            embedded_data, lengths.cpu(), batch_first=True, enforce_sorted=False
+        )
+        packed_out, _ = self.lstm(packed_embedded_data)
+        padded_out, _ = pad_packed_sequence(packed_out, batch_first=True)
+        out_final = padded_out[:, -1]
+        rep = self.head(out_final)
+        return rep
