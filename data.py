@@ -1,4 +1,5 @@
 import torch
+import copy
 import random
 from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizer
@@ -88,7 +89,7 @@ def generate_trellis(depth, width, alpha):
     final_states = []
     transitions = {}
     for d in range(depth):
-        new_layer = [f'q{d},{w}' for w in range(width)]
+        new_layer = [f'q{d}-{w}' for w in range(width)]
         states += new_layer
 
         for l in new_layer:
@@ -96,14 +97,22 @@ def generate_trellis(depth, width, alpha):
                 final_states.append(l)
 
         for l in last_layer:
+            transitions[l] = {}
             for a in alpha:
                 transitions[l][a] = np.random.choice(new_layer)
 
+        last_layer = copy.copy(new_layer)
+    
+    for l in last_layer:
+        transitions[l] = {}
+        for a in alpha:
+            transitions[l][a] = l
+
     dfa = DFA(
         states=set(states),
-        input_symbols={"0", "1"},
+        input_symbols=set(alpha),
         transitions=transitions,
-        initial_state="q0",
+        initial_state=initial_state,
         final_states=set(final_states),
     )
     dfa = dfa.minify()
