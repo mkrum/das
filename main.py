@@ -108,5 +108,5 @@ if __name__ == "__main__":
     model = config["model"]()
     model = model.cuda()
 
-    tokenizer = config["tokenizer"]()
+    tokenizer = config["tokenizer"](dfa)
     StandardTrain()(dfa, model, tokenizer, train_data, test_data, logger)

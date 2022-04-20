@@ -1,11 +1,9 @@
 
 tokenizer: !SimpleDFATokenizer()
-    symbols: ["0", "1"]
     max_len: 1024
 
-datasets: !make_binary_datasets()
+datasets: !make_random_datasets()
     max_size: 21
-    train_per: 0.9
 
 DFA: !generate_trellis()
     width: 2

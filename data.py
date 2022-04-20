@@ -16,10 +16,10 @@ class SimpleDFATokenizer(PreTrainedTokenizer):
     Represents treating each individual nucleotide as its own token.
     """
 
-    def __init__(self, symbols, max_len=1024):
+    def __init__(self, dfa, max_len=1024):
         super().__init__(max_len=max_len, pad_token="<pad>")
         # add start and pad symbol
-        self.symbols = symbols + ["<s>", "<pad>"]
+        self.symbols = list(dfa.input_symbols) + ["<s>", "<pad>"]
 
     def _tokenize(self, sequence):
         return ["<s>"] + list(sequence)
@@ -122,7 +122,7 @@ def generate_trellis(depth, width, alpha_num):
     N = 1000
     accept = 0.0
     for i in range(N):
-        random_string = sample_string(["0", "1"], depth, depth)
+        random_string = sample_string(alpha, depth, depth)
         accept += int(dfa.accepts_input(random_string))
 
     acc = accept / N
@@ -143,7 +143,7 @@ def generate_data(max_size):
     return binary_data
 
 
-def make_binary_datasets(dfa, max_size, train_per):
+def make_binary_datasets(dfa, max_size):
     data = generate_data(max_size)
 
     total = len(data)
@@ -152,6 +152,9 @@ def make_binary_datasets(dfa, max_size, train_per):
     train_data = data[:train_size]
     test_data = data[train_size:]
     return DFADataset(dfa, train_data), DFADataset(dfa, test_data)
+
+def make_random_datasets(dfa, max_size):
+    return RandomDFADataset(dfa, max_size, max_size), RandomDFADataset(dfa, max_size, max_size)
 
 
 class DFADataset(Dataset):
@@ -197,13 +200,13 @@ class RandomDFADataset(Dataset):
 
     def __len__(self):
         # Return some very, very large number to simulate infinite data
-        return 2**30
+        return 3788800 #2**30
 
     def __getitem__(self, idx):
         """
         Randomly samples a string, labels whether or not it accepts
         """
-        random_string = sample_string(set(["0", "1"]), self.min_len, self.max_len)
+        random_string = sample_string(self.dfa.input_symbols, self.min_len, self.max_len)
         label = int(self.dfa.accepts_input(random_string))
         return random_string, label
 
