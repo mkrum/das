@@ -79,6 +79,36 @@ def generate_random_binary_dfa(max_input_len, n_states=640):
 
     return dfa
 
+def generate_trellis(depth, width, alpha):
+
+    initial_state = 'q0'
+    
+    states = [initial_state]
+    last_layer = [initial_state]
+    final_states = []
+    transitions = {}
+    for d in range(depth):
+        new_layer = [f'q{d},{w}' for w in range(width)]
+        states += new_layer
+
+        for l in new_layer:
+            if random.random() < 0.5:
+                final_states.append(l)
+
+        for l in last_layer:
+            for a in alpha:
+                transitions[l][a] = np.random.choice(new_layer)
+
+    dfa = DFA(
+        states=set(states),
+        input_symbols={"0", "1"},
+        transitions=transitions,
+        initial_state="q0",
+        final_states=set(final_states),
+    )
+    dfa = dfa.minify()
+    return dfa
+
 
 def generate_data(max_size):
     binary_data = ["0", "1"]
@@ -164,3 +194,7 @@ class RandomDFADataset(Dataset):
             ), torch.LongTensor(labels)
 
         return collate_fn
+
+if __name__ == '__main__':
+    dfa = generate_trellis(21, 2, ["0", "1"])
+    dfa.show_diagram(path=f"tmp.png")
