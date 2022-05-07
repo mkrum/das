@@ -100,7 +100,6 @@ if __name__ == "__main__":
     with open(f"{args.log_path}/config.yml", "w") as cfg_save:
         cfg_save.write(config.to_yaml())
 
-    dfa.show_diagram(path=f"{args.log_path}/dfa.png")
     pkl.dump(dfa, open(f"{args.log_path}/dfa.pkl", "wb"))
 
     train_data, test_data = config["datasets"](dfa)
