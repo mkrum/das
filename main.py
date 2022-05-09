@@ -8,12 +8,12 @@ from torch.utils.data import DataLoader
 import torch.optim as optim
 import torch.nn.functional as F
 
-from data import make_binary_datasets
+from das.data import make_binary_datasets
 from mllg import LogWriter, TestInfo, TrainInfo, ValidationInfo
 
 from yamlargs.parser import load_config_and_create_parser, parse_args_into_config
 
-import config
+import das.config
 
 
 def eval_model(model, test_dl, sample_size):
