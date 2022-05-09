@@ -225,5 +225,5 @@ class RandomDFADataset(Dataset):
 
 
 if __name__ == "__main__":
-    dfa = generate_trellis(21, 3, 3)
+    dfa = generate_trellis(3, 6, 6)
     dfa.show_diagram(path=f"tmp.png")

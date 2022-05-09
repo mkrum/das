@@ -88,7 +88,7 @@ class SimpleEncoder(nn.Module):
         self.encoder = TransformerEncoder(encoder_layers, nlayers)
 
         self.to_logits = nn.Sequential(
-            nn.Linear(d_model, n_tokens),
+            nn.Linear(d_model, 2),
         )
 
         self.device = torch.device("cuda")
