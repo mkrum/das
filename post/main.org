@@ -3,6 +3,7 @@
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="static/pandoc.css" />
 #+bibliography: main.bib
 
+
 #+BEGIN_EXPORT html
 <style>
 
@@ -21,12 +22,15 @@ blockquote {
 </style>
 #+END_EXPORT
 
+#+CAPTION: [cite:@randomdfa]
+[[../presentation/images/random_dfa.png]]
+
+
 #+BEGIN_QUOTE
 *Author's Note*: This is a lightly edited version of a paper that I had worked on
  towards the end of grad school. All of the work was originally done prior to
- May of 2021, which is why it may sound a little anachronistic at times. I
- thought this website was an appropriate resting place for these
- experiments. 
+ April of 2021, which is why it may sound a little anachronistic given the date
+ it was uploaded.
 #+END_QUOTE
 
 * Introduction
@@ -34,25 +38,25 @@ Self-attention represents the backbone of many of the cutting-edge breakthroughs
 in machine learning. However, little is know about the theoretical qualities of
 self-attention based learning mechanisms. This installment attempts to shed some light
 on this area by evaluating the ability of transformers to passively learn
-deterministic finite automata. Over the course of 1700+ trials, we were able to
+deterministic finite automata (DFA). Over the course of 1700+ trials, we were able to
 determine direct predictive relationships between the underlying parameters of
 certain forms of DFAs and the performance of both self-attention and recurrence
 based models. We also demonstrate certain problem formulations in which even
 complex self-attention based models are likely to fail, but simple recurrent
-models succeed. Our code is available at
-[[https://github.com/mkrum/das]]
+models succeed.
 
+* Background
 Transformers [cite:@transformers] have taken machine learning by storm. From
 natural language processing to computer vision, this network architecture has
 set state of the art performance on a wide variety of tasks. The key
-breakthrough enabling this is self-attention. Instead of relying on processing
-each element in a sequence one-by-one, self-attention has the ability to compute
-the representation over all elements in a sequence in parallel. This has both
-contributed to the efficiency and scalability of these algorithms, along with
-enhancing their ability to attended to information from diverse parts of
-the sequence. Although attention and self-attention had existed in different
-forms previous to this architecture, the transformer was the first to use it as
-it's main learning mechanism.
+breakthrough behind this success is self-attention. Instead of relying on
+processing each element in a sequence one-by-one, self-attention has the ability
+to compute the representation over all elements in a sequence in parallel. This
+has both contributed to the efficiency and scalability of these algorithms,
+along with enhancing their ability to attended to information from diverse parts
+of the sequence. Although attention and self-attention had existed in different
+forms previous to this architecture, the transformer was the first to claim that
+it was "all you need."
 
 However, little is known about the theoretical learning properties of
 self-attention. There has been ample empirical work attempting to better
@@ -63,22 +67,23 @@ transformers, it does not aid in understanding the fundamental relationship
 between task complexity and representational capacity for these self-attention
 based models. 
 
-Deterministic finite automata (DFA) have been an area of active study in
-computational theory for decades. DFA's were originally believed to be the
-underlying representational structure of natural language. They represent a
-straight forward sequential modeling problem domain with well known complexity
-properties and easily modifiable hyperparameters.  Importantly for this use
-case, they are easy to randomly generate and easy to evaluate. 
+#+CAPTION: In practice, we know that bigger networks can represent more complex functions than smaller networks. But how much bigger? And how much more complex?
+[[../presentation/images/what.png]]
 
-In this work, we run a series of experiments evaluating the performance of
-different types of models at passively learning DFAs from samples. The goal is
-to try to connect the performance of these models to the underlying complexity
+Deterministic finite automata (DFA) have been an area of active study in
+computational theory for decades. They represent a straight forward sequential
+modeling problem domain with well known complexity properties and easily
+modifiable hyperparameters.  Importantly for this use case, they are easy to
+randomly generate and easy to evaluate.
+
+In this installment, we run a series of experiments evaluating the performance
+of different types of models at passively learning DFAs from samples. We will
+then try to connect the performance of these models to the underlying complexity
 of the DFA, and use this to extrapolate practical insights about the differences
 between the representational capacity self-attention based networks and
-recurrence based networks. We present our results in the following sections, and
-conclude with an analysis and discussion of our experiments.
+recurrence based networks.
 
-* Related Work
+* Background
 
 There has been a good amount of work on the computational limits for standard
 recurrent neural networks. [cite:@siegelmanandsontag] demonstrated that these
@@ -87,16 +92,19 @@ compute. [cite:@powerofRNNs] were able to show that certain realizable forms of
 RNN's were exactly as powerful as DFA's and, assuming arbitrary levels of
 precision, could be at most as powerful as pushdown automata.
 
-A similar result for transformers was able to demonstrate that
-hard-attention-based transformers at the limit are as powerful as turing
-machines [cite:@perez]. However realizable forms of transformers are known to be
-more limited. [cite:@hahn] demonstrated that for every fixed size transformer,
-there exists a context-free grammar that it cannot express to a given level of
-accuracy for both hard and soft attention. Different forms of architectures have
-been proposed specifically to mitigate this non-universality, notably the
-universal transformer [cite:@ut] which augments the standard transformer
-architecture with a form of recurrence similar to that of RNNs. However, most
-practical applications still opt to use a form of the standard transformer architecture.
+A similar result for transformers was able to demonstrate that transformers with
+infinite parameters are as powerful as turing machines [cite:@perez]. However
+realizable forms of transformers are known to be more limited. [cite:@hahn]
+demonstrated that for every fixed size transformer, there exists a context-free
+grammar that it cannot express to a given level of accuracy for both hard and
+soft attention. Different forms of architectures have been proposed specifically
+to mitigate this non-universality, notably the universal transformer [cite:@ut]
+which augments the standard transformer architecture with a form of recurrence
+similar to that of RNNs. However, most practical applications still opt to use a
+form of the standard transformer architecture.
+
+#+CAPTION: Graph from [cite:@scalinglaws]
+[[../presentation/images/scaling_laws.png]]
 
 There have been a large number of experiments to better understand the
 capabilities of transformers at scale. These works were mostly inspired by
@@ -125,14 +133,9 @@ operations.  There is also a good amount of work on using transformers to find
 approximate solutions to known NP-Hard problems, most notably the traveling
 salesman problem in [cite:@wouter] and [cite:@otherTSP].
 
-* Preliminaries
-
 #+CAPTION: Visual comparison of a recurrence based and self-attention based architecture. The recurrence based architecture (a) processes each $x$ in the sequence one by one. Every time it outputs a hidden state representation $h_i$ for the corresponding $x_i$. This is then fed into the network to compute $h_{i + 1}$ for $x_{i + 1}$. By continually passing the hidden state from the last computation to the next, the network can send information through time, allowing the representation for $x_{i + 1}$ to depend on $x_i$. Self attention (b) on the other hand computes all of the hidden states at once in a single feed forward operation. It effectively simulates sequential processing by constricting which parts of the sequence can attend to other parts of the sequence.
+#+NAME: fig:arch
 [[../analysis/plots/arch.png]]
-
-This section will briefly cover some background information on the different
-types of methods for modeling sequences with neural networks considered in this
-paper.
 
 ** Recurrent Neural Network
 
@@ -149,14 +152,15 @@ our network $f$ to itself and the data,
 \begin{equation}
         h_n = f(x_n, f(x_{n-1}, f(x_{n-2}, \dots f(x_2, f(x_1, h_0)))\dots )
 \end{equation}
-hence the name "recurrent neural network." This process is visualized figure \ref{fig:archs}. These kinds of networks were the workhorse of natural language processing for
-many years, with many different architectural variations on this underlying
-theme. There are clear functional analogies between recurrent neural networks
-and the processing mechanisms of turing machines or pushdown automata. Meaning,
-each of these operates as a function that reads in some state, updates its
-internal state, and continues processing. This has made theoretical connections
-between RNN's and other computational learning theory concepts fairly
-straightforward.
+hence the name "recurrent neural network." This process is visualized figure
+[[fig:arch]]. These kinds of networks were the workhorse of natural language
+processing for many years, with many different architectural variations on this
+underlying theme. There are clear functional analogies between recurrent neural
+networks and the processing mechanisms of turing machines or pushdown
+automata. Each of these operates as a function that reads in some
+state, updates its internal state, and continues processing. This has made
+theoretical connections between RNN's and other computational learning theory
+concepts fairly straightforward.
 
 ** Self Attention
 Models using self attention process sequential data in a fundamentally different
@@ -179,7 +183,7 @@ where Q is a matrix containing all of the query vectors, K is a matrix
 containing all of the key vectors, and V is a matrix containing the value
 vectors. This is the underlying attention mechanism. When the queries, keys and
 values are all coming from the same set of vectors, it is known as
-self-attention. This processes is visualized in figure \ref{fig:archs}.
+self-attention. This processes is visualized in figure [[fig:arch]].
 
 This operation alone is non-sequential, meaning it has no understanding of the
 relative ordering of each $x_i$ as it is computing its representation. In order
@@ -201,22 +205,26 @@ a direct comparison between them.
 
 For our main models, we used a series of transformer models with 2, 4, and 8
 layers self-attention respectively, Each had an internal hidden dimension
-of 128.
-These models implement the vanilla form of self-attention described above,
-closest to the version introduced in the original paper [cite:@transformers]. Our
-hope was to keep the underlying architecture as simple as possible, to isolate
-the specific effects of self-attention and not further optimizations.
+of 128.  These models implement the vanilla form of self-attention described
+above, closest to the version introduced in the original paper
+[cite:@transformers]. Our hope was to keep the underlying architecture as simple
+as possible, to isolate the specific effects of self-attention and not further
+optimizations.
 
 ** Random Trellis Machines
 
-#+CAPTION:Example of a trellis machine with width 2, depth 6, and alphabet size of 3
+#+CAPTION: Example of a trellis machine with width 2, depth 6, and alphabet size of 3
+#+NAME: fig:example_trellis
 [[../presentation/images/dfa2.png]]
 
 This set of experiments deals with a subset of deterministic finite automata
 known as trellis machines. These are DFA's with a unique feed-forward structure.
 They are composed a series of layers of nodes of a fixed width. Each layer can only be
-connected to adjacent layers. Figure \ref{fig:example_trellis} contains an
+connected to adjacent layers. Figure [[fig:example_trellis]] contains an
 example of a trellis machine.
+
+#+CAPTION: Sample of the analysis from [cite:@randomdfa]
+[[../presentation/images/trellis_dfa.png]]
 
 In [cite:@randomdfa], they were able to derive the following relationship between
 the parameters of the trellis machine and the number of examples to reach a
@@ -231,11 +239,12 @@ the relationships between the parameters and the performance of our models.
 Although the bounds cited above are for a specific algorithm, we want to compare
 and contrast the learning properties of these general purpose sequence learning
 models to the DFA-specific algorithm. However, since modifying the depth changes
-the total size of the dataset and therefore makes compassions between models
+the total size of the dataset and therefore makes comparisons between models
 less clear, we opt to only study the scaling properties of width and alphabet
 size.
 
 #+CAPTION: Performance of the baseline transformer models on trellis machines with scaling alphabet sizes. In this figure and all following figures, n represents the minimum number of samples for any of the settings. Meaning that in the above figure, each alphabet size had at least 26 samples for the 8 layer model.
+#+NAME: fig:alpha_scale
 [[../analysis/plots/alpha.png]]
 
 Our first set of experiments dealt with the size of the underlying alphabet. We
@@ -243,18 +252,20 @@ started with a width of 2, depth of 21 and an alphabet size of 2. We then
 iteratively doubled the alphabet size until it reached 64. At every size, we
 trained a series of our baseline transformer models for a single epoch over our
 data, and then measured their accuracy on the test set.  Their performance is
-shown in figure \ref{fig:alpha_scale}.
+shown in figure [[fig:alpha_scale]].
 
 #+CAPTION: Performance of the baseline transformer models on trellis machines with scaling widths
+#+NAME: fig:width_scale
 [[../analysis/plots/width.png]]
 
 We then repeated a similar experiment for the width of the trellis machine. This
 time, we started with a trellis machine of width 2, depth 21, and alphabet size
 of 64. We then continually doubled the width until it reached 64. We trained an
 identical set of models using identical hyperparameters. The performance of
-these models is shown on figure \ref{fig:width_scale}.
+these models is shown on figure [[fig:width_scale]].
 
 #+CAPTION: Performance of the LSTM model at the scaling tasks
+#+NAME: fig:lstm_scale
 [[../analysis/plots/lstm_scaling.png]]
 
 To better understand how much of this pattern has to do with self attention in
@@ -262,13 +273,14 @@ particular, we also ran these experiments with a simple LSTM [cite:@lstm] model
 with 6 layers and a hidden dimension of 128. This is a simple recurrent
 architecture that does not rely on attention, and instead processes each symbol
 sequentially. The results for this model closely resembled the performance of
-the transformer based models, and can be seen in figure \ref{fig:lstm_scale}.
+the transformer based models, and can be seen in figure [[fig:lstm_scale]].
 This suggests that performance on trellis machines does not distinguish the
 self-attention based and recurrence based models.
 
 ** Random DFAs
 
 #+CAPTION: Example of a randomly generated DFA with 10 states
+#+NAME: fig:example_random
 [[../presentation/images/random_gen_dfa.png]]
 
 We generated fully random DFAs with a simple algorithm. For every node, iterate
@@ -282,17 +294,19 @@ generated DFA had an acceptance rate between 45%-55%. We noticed in earlier
 versions of this experiment that much of the noise in the outcome could be
 attributed to the odds of generating an underlying acceptance rate (0% or
 100%) that was trivial to imitate. An example of a generated dfa can be seen in
-figure \ref{fig:example_random}.
+figure [[fig:example_random]].
 
-#+caption: Performance of the baseline transformer models on randomly
+#+caption: Performance of the baseline transformer models on randomly generated DFA with 10 states
+#+NAME: fig:random_perf
 [[../analysis/plots/random.png]]
 
-Figure \ref{fig:random_perf} demonstrates the performance of our transformer
+Figure [[fig:random_perf]] demonstrates the performance of our transformer
 models on randomly sampled DFA's of size 4, 6, 8, and 10. You'll notice that
 these models perform surprisingly poorly on this task, with even the largest
 model consistently failing to learn some of the small DFA's. 
 
-#+caption: Performance of the additional models on randomly
+#+caption: Performance of the additional models on randomly generated DFA
+#+NAME: fig:random_bonus_perf
 [[../analysis/plots/random_bonus.png]]
 
 As a comparison and validation step, we also evaluated two additional models
@@ -302,7 +316,7 @@ miniaturized version of BERT [cite:@bert] with a hidden size of 768 and two
 hidden layers. This model is a state-of-the-art language model used in text
 classification tasks.
 
-Figure \ref{fig:random_bonus_perf} demonstrates their performance. BERT performs
+Figure [[fig:random_bonus_perf]] demonstrates their performance. BERT performs
 similarly to the baseline transformer models, giving supporting evidence to the
 idea that we are seeing a general property of self-attention based models and
 not a result of our implementation. Somewhat surprisingly in comparison, the
@@ -316,9 +330,10 @@ performing at this task.
 * Analysis & Discussion
 
 #+caption: Comparison of the mean accuracy values across the different size transformers and LSTM.
+#+NAME: fig:trends
 [[../analysis/plots/trends.png]]
 
-Figure \ref{fig:trends} contains the plot summarizing the mean performance for
+Figure [[fig:trends]] contains the plot summarizing the mean performance for
 the models across the different tasks. The key takeaways from these experiments
 are summarized as follows.
 
@@ -410,3 +425,5 @@ that these results represent an incremental step forward in terms of
 understanding not only what types of problems self-attention is well suited for,
 but also what types of problems might correlate with real world language
 modeling performance.
+
+#+print_bibliography:
